@@ -13,6 +13,12 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
+  Major: '1'
+  Minor: '0'
+  revision: $[counter(variables['Minor'], 1)]
+  nugetVersion: '$(Major).$(Minor).$(revision)'
+  nugetProjectName: 'MvcMovie'
+
 
 steps:
 - task: NuGetToolInstaller@1
@@ -28,3 +34,25 @@ steps:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
+- task: DotNetCoreCLI@2
+  displayName: 'Create Nuget Package'
+  inputs:
+    command: 'pack'
+    packagesToPack: '**/$(nugetProjectName).csproj'
+    versioningScheme: 'byEnvVar'
+    versionEnvVar: 'nugetVersion'
+    nobuild: true
+    outputDir: '$(Build.ArtifactStagingDirectory)'
+    arguments: '--configuration $(buildConfiguration) /p:PackageVersion=$(nugetVersion)'
+
+- task: NuGetCommand@2
+  inputs:
+    command: 'push'
+    packagesToPush: '$(Build.ArtifactStagingDirectory)/**/*.nupkg;!$(Build.ArtifactStagingDirectory)/**/*.symbols.nupkg'
+    nuGetFeedType: 'internal'
+    publishVstsFeed: '64acb44c-aacc-41fa-9295-dc1fb50e2941/eef0d0cd-9921-4330-806a-4822980c8fdb'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: '$(ArtifactName)'
